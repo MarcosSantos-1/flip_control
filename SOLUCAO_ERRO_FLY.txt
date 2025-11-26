@@ -1,0 +1,112 @@
+================================================================================
+SOLUCAO PARA ERRO NO FLY.IO DEPLOY
+================================================================================
+
+ERRO: "launch manifest was created for a app, but this is a app"
+
+CAUSA:
+- O app ja existe no Fly.io mas com configuração diferente
+- Ou há conflito entre configuração do fly.toml e o app existente
+
+SOLUCAO:
+================================================================================
+
+OPCAO 1 - DELETAR E RECRIAR O APP (Mais simples)
+--------------------------------------------------------
+
+1. No Fly.io dashboard:
+   - Vá em: https://fly.io/dashboard
+   - Encontre o app "flip-control-backend"
+   - Settings > Danger Zone > Delete App
+   - Confirme a deleção
+
+2. CRIAR APP NOVAMENTE:
+   - New App
+   - Nome: flip-control-backend
+   - Região: gru (São Paulo)
+   - NÃO conecte ao GitHub ainda
+
+3. CONFIGURAR SECRETS:
+   - Settings > Secrets
+   - Adicione todas as variáveis:
+     * DATABASE_URL = (string do Neon)
+     * CORS_ORIGINS = https://seu-app.vercel.app
+     * ENVIRONMENT = production
+     * DEBUG = false
+     * API_V1_PREFIX = /api/v1
+     * LOG_LEVEL = INFO
+
+4. USAR GITHUB ACTIONS:
+   - Não conecte o repositório direto no Fly.io
+   - Use apenas GitHub Actions (já configurado)
+   - Configure FLY_API_TOKEN no GitHub Secrets
+   - Faça push = deploy automático!
+
+OPCAO 2 - CORRIGIR APP EXISTENTE
+--------------------------------------------------------
+
+1. NO FLY.IO DASHBOARD:
+   - Vá em Settings > Source
+   - Se estiver conectado ao GitHub, desconecte
+   - Ou configure:
+     * Root Directory: backend
+     * Build Command: (deixe vazio)
+     * Start Command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+2. USAR APENAS GITHUB ACTIONS:
+   - Não use integração direta do Fly.io com GitHub
+   - Use apenas o workflow do GitHub Actions
+   - Mais confiável e controlado
+
+OPCAO 3 - DEPLOY MANUAL VIA CLI (Se tiver CLI instalado)
+--------------------------------------------------------
+
+cd backend
+flyctl deploy --remote-only
+
+Mas como você não quer usar CLI, use Opção 1 ou 2!
+
+================================================================================
+CONFIGURACAO RECOMENDADA
+================================================================================
+
+1. APP NO FLY.IO:
+   - Criado manualmente (sem conectar GitHub)
+   - Secrets configuradas manualmente
+
+2. GITHUB ACTIONS:
+   - Workflow já configurado (.github/workflows/fly-deploy.yml)
+   - FLY_API_TOKEN configurado em GitHub Secrets
+   - Deploy automático a cada push
+
+3. VERCEL:
+   - Conectado ao GitHub
+   - Root Directory: web
+   - Deploy automático
+
+================================================================================
+CHECKLIST FINAL
+================================================================================
+
+FLY.IO:
+[ ] App criado (sem conectar GitHub)
+[ ] Secrets configuradas (DATABASE_URL do Neon, etc)
+[ ] App NÃO está conectado ao GitHub diretamente
+
+GITHUB:
+[ ] FLY_API_TOKEN configurado em Secrets > Actions
+[ ] Workflow fly-deploy.yml existe
+[ ] Push realizado
+
+VERCEL:
+[ ] Projeto importado
+[ ] Root Directory = web
+[ ] NEXT_PUBLIC_API_URL configurada
+
+TESTE:
+[ ] GitHub Actions roda com sucesso
+[ ] Backend responde em /health
+[ ] Frontend carrega
+
+================================================================================
+

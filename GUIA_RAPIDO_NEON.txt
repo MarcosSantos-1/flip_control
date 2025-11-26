@@ -1,0 +1,83 @@
+================================================================================
+GUIA RAPIDO - DEPLOY COM NEON DATABASE
+================================================================================
+
+PROBLEMA RESOLVIDO:
+- Fly.io estava tentando fazer deploy do diretório errado
+- Agora configurado para usar Dockerfile do diretório backend
+- GitHub Actions ajustado para apontar corretamente
+
+================================================================================
+PASSO A PASSO RAPIDO
+================================================================================
+
+1. NEON DATABASE (Você já tem!):
+   - Obtenha a string de conexão do Neon
+   - Formato: postgresql://user:pass@host.neon.tech/dbname?sslmode=require
+
+2. FLY.IO - CRIAR APP:
+   - https://fly.io/dashboard > New App
+   - Nome: flip-control-backend
+   - Região: gru (São Paulo)
+
+3. FLY.IO - CONFIGURAR SECRETS:
+   - Settings > Secrets > Add Secret
+   - DATABASE_URL = (string do Neon)
+   - CORS_ORIGINS = https://seu-app.vercel.app (atualizar depois)
+   - ENVIRONMENT = production
+   - DEBUG = false
+   - API_V1_PREFIX = /api/v1
+   - LOG_LEVEL = INFO
+
+4. GITHUB - CONFIGURAR SECRET:
+   - Settings > Secrets > Actions > New secret
+   - Nome: FLY_API_TOKEN
+   - Valor: (obtenha em https://fly.io/dashboard/personal/api_tokens)
+
+5. VERCEL - IMPORTAR PROJETO:
+   - https://vercel.com > Import Project
+   - Selecione seu repositório
+   - Root Directory: web (IMPORTANTE!)
+   - Environment Variable: NEXT_PUBLIC_API_URL = https://flip-control-backend.fly.dev
+
+6. FAZER PUSH:
+   - git add .
+   - git commit -m "Configura deploy com Neon"
+   - git push
+   - GitHub Actions vai fazer deploy automatico!
+
+================================================================================
+IMPORTANTE - ROOT DIRECTORY
+================================================================================
+
+Se você conectou o repositório direto no Fly.io (não via GitHub Actions):
+
+1. Vá em: https://fly.io/dashboard > Seu App > Settings
+2. Procure por "Source" ou "Repository"
+3. Configure:
+   - Root Directory: backend
+   - Build Command: (deixe vazio)
+   - Start Command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+OU use GitHub Actions (já configurado corretamente):
+- Não precisa configurar nada no Fly.io
+- Só precisa do FLY_API_TOKEN no GitHub Secrets
+
+================================================================================
+VERIFICAR DEPLOY
+================================================================================
+
+Backend:
+- https://flip-control-backend.fly.dev/health
+- Deve retornar: {"status":"ok"}
+
+Frontend:
+- URL fornecida pela Vercel
+- Deve carregar a aplicação
+
+Banco Neon:
+- Verificar no dashboard do Neon se tabelas foram criadas
+- Migrations rodam automaticamente via release_command no fly.toml
+
+================================================================================
+

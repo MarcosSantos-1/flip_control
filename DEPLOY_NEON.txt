@@ -1,0 +1,253 @@
+================================================================================
+DEPLOY COM NEON DATABASE - FLIP CONTROL
+================================================================================
+
+Este guia mostra como fazer deploy usando Neon (banco PostgreSQL externo)
+em vez de criar banco no Fly.io.
+
+================================================================================
+PARTE 1: CONFIGURAR NEON DATABASE
+================================================================================
+
+1. ACESSAR NEON:
+   - Vá em: https://neon.tech
+   - Faça login (pode usar GitHub)
+
+2. CRIAR PROJETO:
+   - Clique em "Create Project"
+   - Nome: flip-control
+   - Região: Escolha mais próxima (ex: São Paulo se disponível)
+   - Clique em "Create Project"
+
+3. OBTER STRING DE CONEXÃO:
+   - No dashboard do Neon, vá em "Connection Details"
+   - Copie a "Connection String"
+   - Formato: postgresql://usuario:senha@host.neon.tech/dbname?sslmode=require
+   - GUARDE ESSA STRING! Você vai usar no Fly.io
+
+4. TESTAR CONEXÃO (Opcional):
+   - Use qualquer cliente PostgreSQL
+   - Ou teste via psql se tiver instalado
+
+================================================================================
+PARTE 2: CONFIGURAR FLY.IO (BACKEND)
+================================================================================
+
+OPCAO A - VIA INTERFACE WEB (Recomendado)
+--------------------------------------------------------
+
+1. CRIAR APP NO FLY.IO:
+   - Acesse: https://fly.io/dashboard
+   - Clique em "New App"
+   - Nome: flip-control-backend
+   - Região: São Paulo (gru)
+   - Clique em "Create App"
+
+2. CONFIGURAR SECRETS:
+   - No app criado, vá em "Settings" > "Secrets"
+   - Clique em "Add Secret" e adicione:
+
+   DATABASE_URL = (cole a string de conexão do Neon)
+   CORS_ORIGINS = https://seu-app.vercel.app (atualize depois)
+   ENVIRONMENT = production
+   DEBUG = false
+   API_V1_PREFIX = /api/v1
+   LOG_LEVEL = INFO
+
+3. CONFIGURAR GITHUB ACTIONS:
+   - Obtenha token: https://fly.io/dashboard/personal/api_tokens
+   - No GitHub: Settings > Secrets > Actions
+   - Adicione: FLY_API_TOKEN = (token do Fly.io)
+
+4. PRIMEIRO DEPLOY:
+   - Faça push para GitHub
+   - GitHub Actions vai fazer deploy automaticamente
+   - Ou vá em "Actions" no GitHub e rode manualmente
+
+OPCAO B - CONECTAR REPOSITORIO DIRETO
+--------------------------------------------------------
+
+1. No Fly.io dashboard, clique em "New App" > "GitHub"
+2. Selecione seu repositório: MarcosSantos-1/flip_control
+3. Configure:
+   - App Name: flip-control-backend
+   - Root Directory: backend (IMPORTANTE!)
+   - Build Command: (deixe vazio, usa Dockerfile)
+   - Start Command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+4. Configure Secrets (mesmo passo 2 da Opção A)
+5. Deploy automatico!
+
+================================================================================
+PARTE 3: CONFIGURAR VERCEL (FRONTEND)
+================================================================================
+
+1. ACESSAR VERCEL:
+   - Vá em: https://vercel.com
+   - Faça login com GitHub
+
+2. IMPORTAR PROJETO:
+   - Clique em "Add New..." > "Project"
+   - Selecione o repositório: MarcosSantos-1/flip_control
+   - Clique em "Import"
+
+3. CONFIGURAR PROJETO:
+   - Framework Preset: Next.js
+   - Root Directory: web (IMPORTANTE!)
+   - Build Command: npm run build
+   - Output Directory: .next
+   - Install Command: npm install
+
+4. CONFIGURAR VARIAVEIS DE AMBIENTE:
+   - Na tela de configuração, role até "Environment Variables"
+   - Adicione:
+     * Nome: NEXT_PUBLIC_API_URL
+     * Valor: https://flip-control-backend.fly.dev
+       (Substitua pelo nome real do seu app no Fly.io)
+   - Marque para: Production, Preview e Development
+
+5. DEPLOY:
+   - Clique em "Deploy"
+   - Aguarde o build
+   - Copie a URL do frontend
+
+6. ATUALIZAR CORS NO FLY.IO:
+   - Volte ao Fly.io > Seu App > Settings > Secrets
+   - Edite CORS_ORIGINS
+   - Valor: URL completa do frontend Vercel (sem trailing slash)
+   - Exemplo: https://flip-control-xxxxx.vercel.app
+
+================================================================================
+VARIAVEIS DE AMBIENTE - RESUMO
+================================================================================
+
+FLY.IO (Settings > Secrets):
+--------------------------------------------------------
+DATABASE_URL = postgresql://user:pass@host.neon.tech/dbname?sslmode=require
+CORS_ORIGINS = https://seu-app.vercel.app
+ENVIRONMENT = production
+DEBUG = false
+API_V1_PREFIX = /api/v1
+LOG_LEVEL = INFO
+
+GITHUB SECRETS (Settings > Secrets > Actions):
+--------------------------------------------------------
+FLY_API_TOKEN = (token do Fly.io)
+
+VERCEL (Project Settings > Environment Variables):
+--------------------------------------------------------
+NEXT_PUBLIC_API_URL = https://flip-control-backend.fly.dev
+
+================================================================================
+VERIFICACAO POS-DEPLOY
+================================================================================
+
+BACKEND:
+- Health: https://flip-control-backend.fly.dev/health
+- Docs: https://flip-control-backend.fly.dev/docs
+- Logs: https://fly.io/dashboard > Seu App > Logs
+
+FRONTEND:
+- URL: https://seu-app.vercel.app
+- Logs: Vercel Dashboard > Seu Projeto > Deployments
+
+BANCO (NEON):
+- Dashboard: https://neon.tech/console
+- Verificar conexões ativas
+- Verificar se tabelas foram criadas (após migrations)
+
+================================================================================
+RODAR MIGRATIONS NO NEON
+================================================================================
+
+OPCAO 1 - VIA FLY.IO (Recomendado):
+--------------------------------------------------------
+1. No Fly.io dashboard, vá em seu app
+2. Clique em "Console" ou "SSH"
+3. Execute:
+   alembic upgrade head
+
+OPCAO 2 - VIA GITHUB ACTIONS:
+--------------------------------------------------------
+O arquivo fly.toml já está configurado com:
+[deploy]
+  release_command = "alembic upgrade head"
+
+Isso roda migrations automaticamente em cada deploy!
+
+OPCAO 3 - VIA LOCAL (se tiver acesso):
+--------------------------------------------------------
+1. Configure DATABASE_URL localmente apontando para Neon
+2. Execute: alembic upgrade head
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+ERRO: "Could not find Dockerfile"
+- Verifique se backend/Dockerfile existe
+- Verifique se Root Directory está como "backend" no Fly.io
+- Verifique se o workflow do GitHub Actions está correto
+
+ERRO: "No such file or directory @ rb_sysopen"
+- O Fly.io está tentando fazer deploy do diretório errado
+- Certifique-se que Root Directory = "backend" no Fly.io
+- Ou use GitHub Actions (já configurado corretamente)
+
+BACKEND NAO CONECTA AO NEON:
+- Verifique DATABASE_URL no Fly.io Secrets
+- Certifique-se que a string de conexão está completa
+- Verifique se o Neon permite conexões externas (deve permitir)
+- Teste a conexão: fly ssh console > python -c "from app.database import engine; engine.connect()"
+
+MIGRATIONS NAO RODAM:
+- Verifique se release_command está no fly.toml
+- Ou rode manualmente: fly ssh console -C "cd /app && alembic upgrade head"
+
+CORS ERRORS:
+- Verifique CORS_ORIGINS no Fly.io
+- Certifique-se que a URL do frontend está correta (sem trailing slash)
+
+================================================================================
+CHECKLIST COMPLETO
+================================================================================
+
+NEON:
+[ ] Conta criada no Neon
+[ ] Projeto criado
+[ ] String de conexão copiada
+[ ] Conexão testada (opcional)
+
+FLY.IO:
+[ ] App criado (flip-control-backend)
+[ ] DATABASE_URL configurado (string do Neon)
+[ ] CORS_ORIGINS configurado (atualizar depois com URL do frontend)
+[ ] Outras secrets configuradas
+[ ] FLY_API_TOKEN adicionado no GitHub Secrets
+[ ] Root Directory = "backend" (se usar integração direta)
+
+GITHUB:
+[ ] Workflow fly-deploy.yml criado
+[ ] FLY_API_TOKEN configurado em Secrets
+[ ] Push realizado
+
+VERCEL:
+[ ] Projeto importado do GitHub
+[ ] Root Directory = "web"
+[ ] NEXT_PUBLIC_API_URL configurada
+[ ] Deploy realizado
+[ ] URL do frontend obtida
+[ ] CORS_ORIGINS atualizado no Fly.io
+
+MIGRATIONS:
+[ ] Migrations rodadas (automático ou manual)
+[ ] Tabelas criadas no Neon (verificar no dashboard)
+
+TESTES:
+[ ] Backend responde em /health
+[ ] Frontend carrega corretamente
+[ ] Frontend consegue fazer requisições para API
+[ ] Upload de CSV funciona
+[ ] Gráficos carregam
+
+================================================================================
+

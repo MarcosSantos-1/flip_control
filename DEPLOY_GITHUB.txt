@@ -1,0 +1,231 @@
+================================================================================
+DEPLOY AUTOMATICO VIA GITHUB - FLIP CONTROL
+================================================================================
+
+Este guia mostra como configurar deploy automatico usando GitHub Actions
+para Fly.io (Backend) e Vercel (Frontend).
+
+================================================================================
+PARTE 1: CONFIGURAR FLY.IO (BACKEND)
+================================================================================
+
+OPCAO A - USANDO GITHUB ACTIONS (Recomendado)
+--------------------------------------------------------
+
+1. OBTER FLY API TOKEN:
+   - Acesse: https://fly.io/dashboard/personal/api_tokens
+   - Clique em "Create Token"
+   - Copie o token gerado
+
+2. ADICIONAR SECRET NO GITHUB:
+   - Vá em: https://github.com/MarcosSantos-1/flip_control/settings/secrets/actions
+   - Clique em "New repository secret"
+   - Nome: FLY_API_TOKEN
+   - Valor: Cole o token copiado do Fly.io
+   - Clique em "Add secret"
+
+3. CRIAR APP NO FLY.IO (Primeira vez):
+   - Acesse: https://fly.io/dashboard
+   - Clique em "New App"
+   - Nome: flip-control-backend
+   - Regiao: Sao Paulo (gru)
+   - Clique em "Create App"
+
+4. CRIAR BANCO POSTGRESQL:
+   - No dashboard do Fly.io, clique em "Databases"
+   - Clique em "Create Database"
+   - Nome: flip-control-db
+   - Regiao: gru (Sao Paulo)
+   - Plano: Shared CPU 1x (gratis para comecar)
+   - Clique em "Create Database"
+
+5. ANEXAR BANCO AO APP:
+   - No dashboard, abra o app "flip-control-backend"
+   - Vá em "Settings" > "Secrets"
+   - Clique em "Attach Database"
+   - Selecione "flip-control-db"
+   - Isso automaticamente adiciona DATABASE_URL
+
+6. CONFIGURAR OUTRAS VARIAVEIS:
+   - Ainda em "Settings" > "Secrets"
+   - Adicione as seguintes variaveis:
+     * CORS_ORIGINS = https://seu-app.vercel.app
+       (Voce vai atualizar isso depois de fazer deploy do frontend)
+     * ENVIRONMENT = production
+     * DEBUG = false
+     * API_V1_PREFIX = /api/v1
+     * LOG_LEVEL = INFO
+
+7. CONFIGURAR FLY.TOML:
+   - O arquivo backend/fly.toml ja esta configurado
+   - Certifique-se que o nome do app esta correto:
+     app = "flip-control-backend"
+
+8. PRIMEIRO DEPLOY:
+   - Faca push para o GitHub
+   - O GitHub Actions vai fazer deploy automaticamente
+   - Ou va em "Actions" no GitHub e rode manualmente
+
+OPCAO B - CONECTAR REPOSITORIO DIRETO NO FLY.IO
+--------------------------------------------------------
+
+1. Acesse: https://fly.io/dashboard
+2. Clique em "New App" > "GitHub"
+3. Selecione seu repositorio: MarcosSantos-1/flip_control
+4. Configure:
+   - App Name: flip-control-backend
+   - Root Directory: backend
+   - Build Command: (deixe vazio, usa Dockerfile)
+   - Start Command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+5. Configure secrets (mesmo passo 6 da Opcao A)
+6. Deploy automatico!
+
+================================================================================
+PARTE 2: CONFIGURAR VERCEL (FRONTEND)
+================================================================================
+
+1. ACESSAR VERCEL:
+   - Vá em: https://vercel.com
+   - Faça login com GitHub
+
+2. IMPORTAR PROJETO:
+   - Clique em "Add New..." > "Project"
+   - Selecione o repositorio: MarcosSantos-1/flip_control
+   - Clique em "Import"
+
+3. CONFIGURAR PROJETO:
+   - Framework Preset: Next.js
+   - Root Directory: web
+   - Build Command: npm run build (ja preenchido)
+   - Output Directory: .next (ja preenchido)
+   - Install Command: npm install (ja preenchido)
+
+4. CONFIGURAR VARIAVEIS DE AMBIENTE:
+   - Na tela de configuracao, role ate "Environment Variables"
+   - Adicione:
+     * Nome: NEXT_PUBLIC_API_URL
+     * Valor: https://flip-control-backend.fly.dev
+       (Substitua pelo nome real do seu app no Fly.io)
+   - Marque para: Production, Preview e Development
+
+5. OBTER CREDENCIAIS PARA GITHUB ACTIONS (Opcional):
+   - Se quiser usar GitHub Actions em vez do deploy automatico da Vercel:
+   - Vá em: https://vercel.com/account/tokens
+   - Crie um token
+   - No GitHub, adicione secrets:
+     * VERCEL_TOKEN = seu token
+     * VERCEL_ORG_ID = ID da sua organizacao (encontre em Settings)
+     * VERCEL_PROJECT_ID = ID do projeto (encontre em Settings do projeto)
+
+6. DEPLOY:
+   - Clique em "Deploy"
+   - A Vercel vai fazer deploy automatico
+   - Depois de cada push na branch master, deploy automatico!
+
+7. ATUALIZAR CORS NO BACKEND:
+   - Depois de obter a URL do frontend na Vercel
+   - No Fly.io, va em Settings > Secrets
+   - Atualize CORS_ORIGINS com a URL completa do frontend
+   - Exemplo: https://flip-control.vercel.app
+
+================================================================================
+VARIAVEIS DE AMBIENTE - RESUMO
+================================================================================
+
+FLY.IO (Configurar em Settings > Secrets):
+--------------------------------------------------------
+DATABASE_URL = (adicionado automaticamente ao anexar banco)
+CORS_ORIGINS = https://seu-app.vercel.app
+ENVIRONMENT = production
+DEBUG = false
+API_V1_PREFIX = /api/v1
+LOG_LEVEL = INFO
+
+GITHUB SECRETS (Para GitHub Actions):
+--------------------------------------------------------
+FLY_API_TOKEN = (token do Fly.io)
+NEXT_PUBLIC_API_URL = https://flip-control-backend.fly.dev
+VERCEL_TOKEN = (opcional, se usar GitHub Actions)
+VERCEL_ORG_ID = (opcional, se usar GitHub Actions)
+VERCEL_PROJECT_ID = (opcional, se usar GitHub Actions)
+
+VERCEL (Configurar em Project Settings > Environment Variables):
+--------------------------------------------------------
+NEXT_PUBLIC_API_URL = https://flip-control-backend.fly.dev
+
+================================================================================
+FLUXO DE DEPLOY AUTOMATICO
+================================================================================
+
+1. Voce faz push para GitHub (branch master)
+2. GitHub Actions detecta mudancas em backend/
+3. GitHub Actions faz deploy automatico para Fly.io
+4. Vercel detecta mudancas em web/
+5. Vercel faz deploy automatico do frontend
+6. Tudo atualizado automaticamente!
+
+================================================================================
+VERIFICACAO
+================================================================================
+
+BACKEND:
+- Health: https://flip-control-backend.fly.dev/health
+- Docs: https://flip-control-backend.fly.dev/docs
+- Logs: https://fly.io/dashboard > Seu App > Logs
+
+FRONTEND:
+- URL: https://seu-app.vercel.app
+- Logs: Vercel Dashboard > Seu Projeto > Deployments
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+GITHUB ACTIONS FALHA:
+- Verifique se FLY_API_TOKEN esta configurado corretamente
+- Verifique se o app existe no Fly.io
+- Veja logs em: GitHub > Actions > Seu workflow
+
+VERCEL NAO FAZ DEPLOY:
+- Verifique se Root Directory esta como "web"
+- Verifique se NEXT_PUBLIC_API_URL esta configurada
+- Veja logs em: Vercel Dashboard > Deployments
+
+BACKEND NAO CONECTA AO BANCO:
+- Verifique se DATABASE_URL esta configurado no Fly.io
+- Verifique se o banco esta anexado ao app
+- Veja logs: fly.io dashboard > Seu App > Logs
+
+CORS ERRORS:
+- Verifique CORS_ORIGINS no Fly.io
+- Certifique-se que a URL do frontend esta correta (sem trailing slash)
+
+================================================================================
+CHECKLIST
+================================================================================
+
+FLY.IO:
+[ ] App criado no Fly.io
+[ ] Banco PostgreSQL criado
+[ ] Banco anexado ao app
+[ ] Secrets configurados (CORS_ORIGINS, ENVIRONMENT, etc)
+[ ] FLY_API_TOKEN adicionado no GitHub Secrets
+[ ] GitHub Actions workflow configurado
+
+VERCEL:
+[ ] Projeto importado do GitHub
+[ ] Root Directory configurado como "web"
+[ ] NEXT_PUBLIC_API_URL configurada
+[ ] Primeiro deploy realizado
+[ ] URL do frontend obtida
+[ ] CORS_ORIGINS atualizado no Fly.io com URL do frontend
+
+TESTES:
+[ ] Backend responde em /health
+[ ] Frontend carrega corretamente
+[ ] Frontend consegue fazer requisicoes para API
+[ ] Upload de CSV funciona
+[ ] Graficos carregam
+
+================================================================================
+

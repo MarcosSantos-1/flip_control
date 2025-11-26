@@ -63,7 +63,7 @@ atualizado pelo último censo demográfico realizado do IBGE.
 
 |  **SUBPREFEITURA**    |  **CV**  |  **JT**  |  **ST**  |  **MG**  |  ** Total
 
-| Domicílios**             |         |         |         |         |         |
+| Domicílios**             | CV      | JT      | ST      | MG      | TOTAL   |
 | ------------------------- | ------- | ------- | ------- | ------- | ------- |
 | **Nº DOMICÍLIOS** | 130.030 | 112.924 | 147.969 | 120.170 | 511.093 |
 
