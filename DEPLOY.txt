@@ -1,0 +1,174 @@
+================================================================================
+GUIA DE DEPLOY - FLIP CONTROL
+================================================================================
+
+ARQUITETURA:
+- Backend (FastAPI): Fly.io
+- Frontend (Next.js): Vercel
+- Banco de Dados: PostgreSQL (Fly.io Postgres ou externo)
+
+================================================================================
+BACKEND - DEPLOY NO FLY.IO
+================================================================================
+
+1. INSTALAR FLY CLI:
+   PowerShell: powershell -Command "iwr https://fly.io/install.ps1 -useb | iex"
+
+2. LOGIN:
+   fly auth login
+
+3. CRIAR APP:
+   cd backend
+   fly apps create flip-control-backend
+
+4. CRIAR BANCO POSTGRESQL:
+   fly postgres create --name flip-control-db --region gru --vm-size shared-cpu-1x --volume-size 10
+
+5. ANEXAR BANCO AO APP:
+   fly postgres attach flip-control-db --app flip-control-backend
+
+6. CONFIGURAR VARIAVEIS DE AMBIENTE:
+   fly secrets set DATABASE_URL="postgresql://user:pass@host:5432/db"
+   fly secrets set CORS_ORIGINS="https://seu-app.vercel.app"
+   fly secrets set ENVIRONMENT="production"
+   fly secrets set DEBUG="false"
+   fly secrets set API_V1_PREFIX="/api/v1"
+   fly secrets set LOG_LEVEL="INFO"
+
+7. DEPLOY:
+   fly deploy
+
+8. VERIFICAR:
+   fly logs
+   fly status
+   curl https://flip-control-backend.fly.dev/health
+
+================================================================================
+FRONTEND - DEPLOY NA VERCEL
+================================================================================
+
+1. ACESSAR: https://vercel.com/new
+
+2. CONECTAR REPOSITORIO (GitHub/GitLab)
+
+3. CONFIGURAR:
+   - Root Directory: web
+   - Framework: Next.js
+   - Build Command: npm run build (padrao)
+   - Install Command: npm install (padrao)
+
+4. VARIAVEIS DE AMBIENTE:
+   Na Vercel, Settings > Environment Variables:
+   NEXT_PUBLIC_API_URL = https://flip-control-backend.fly.dev
+   (Substitua pela URL real do seu backend)
+
+5. DEPLOY AUTOMATICO ou manual:
+   cd web
+   vercel --prod
+
+6. ATUALIZAR CORS NO BACKEND:
+   Depois de obter URL do frontend, atualize:
+   fly secrets set CORS_ORIGINS="https://seu-app.vercel.app"
+
+================================================================================
+VARIAVEIS DE AMBIENTE - RESUMO
+================================================================================
+
+BACKEND (Fly.io) - usar: fly secrets set
+--------------------------------------------------------
+OBRIGATORIAS:
+DATABASE_URL=postgresql://usuario:senha@host:5432/flip_control
+CORS_ORIGINS=https://seu-app.vercel.app
+
+RECOMENDADAS:
+ENVIRONMENT=production
+DEBUG=false
+API_V1_PREFIX=/api/v1
+LOG_LEVEL=INFO
+
+OPCIONAIS:
+GEOCODING_API_KEY= (se usar Google Geocoding)
+GEOCODING_PROVIDER=nominatim
+
+FRONTEND (Vercel) - configurar na interface
+--------------------------------------------------------
+NEXT_PUBLIC_API_URL=https://flip-control-backend.fly.dev
+
+================================================================================
+VERIFICACAO POS-DEPLOY
+================================================================================
+
+BACKEND:
+- Health check: curl https://flip-control-backend.fly.dev/health
+- API Docs: https://flip-control-backend.fly.dev/docs
+- Logs: fly logs
+
+FRONTEND:
+- Acessar URL fornecida pela Vercel
+- Testar upload de CSV
+- Verificar se graficos carregam
+
+================================================================================
+ATUALIZACOES FUTURAS
+================================================================================
+
+BACKEND:
+cd backend
+fly deploy
+
+FRONTEND:
+Push para repositorio conectado na Vercel (deploy automatico)
+ou: cd web && vercel --prod
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+BACKEND NAO CONECTA AO BANCO:
+- Verificar DATABASE_URL: fly secrets list
+- Testar conexao: fly ssh console
+  python -c "from app.database import engine; engine.connect()"
+
+CORS ERRORS:
+- Verificar CORS_ORIGINS: fly secrets list
+- Certifique-se que URL do frontend esta incluida (sem trailing slash)
+
+MIGRATIONS NAO RODAM:
+fly ssh console -C "cd /app && alembic upgrade head"
+
+FRONTEND NAO ENCONTRA API:
+- Verificar NEXT_PUBLIC_API_URL na Vercel
+- Verificar se backend esta rodando: fly status
+- Testar URL: curl https://seu-backend.fly.dev/health
+
+================================================================================
+CUSTOS ESTIMADOS
+================================================================================
+
+Fly.io:
+- Backend: ~$5-10/mes
+- PostgreSQL: ~$3-5/mes (ou usar externo gratuito)
+
+Vercel:
+- Frontend: Gratuito (Hobby plan ate 100GB/mes)
+
+Total estimado: ~$8-15/mes
+
+================================================================================
+CHECKLIST DE DEPLOY
+================================================================================
+
+[ ] Backend criado no Fly.io
+[ ] Banco de dados PostgreSQL configurado
+[ ] Variaveis de ambiente do backend configuradas
+[ ] Backend deployado e health check OK
+[ ] Migrations rodadas no banco
+[ ] Frontend conectado na Vercel
+[ ] Variavel NEXT_PUBLIC_API_URL configurada
+[ ] Frontend deployado
+[ ] CORS atualizado com URL do frontend
+[ ] Testes funcionais realizados
+[ ] Logs monitorados
+
+================================================================================
+
